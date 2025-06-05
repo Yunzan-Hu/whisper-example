@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: faster-whisper-service
+  namespace: whisper
+spec:
+  selector:
+    app: faster-whisper
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 31655
+  type: NodePort
