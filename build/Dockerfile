@@ -1,4 +1,3 @@
-#FROM conda/miniconda3:24.5.0
 FROM python:3.9-slim
 
 # Install system dependencies for Conda and faster-whisper
@@ -10,33 +9,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Define CONDA_DIR
 ENV CONDA_DIR=/opt/conda
+ENV PATH=$CONDA_DIR/bin:$PATH
 
 # Download and install Miniconda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py39_23.5.2-0-Linux-x86_64.sh -O /tmp/miniconda.sh && \
     /bin/bash /tmp/miniconda.sh -b -p $CONDA_DIR && \
     rm /tmp/miniconda.sh && \
-    $CONDA_DIR/bin/conda clean --all --yes && \
-    ln -s $CONDA_DIR/bin/conda /usr/local/bin/conda && \
-    ln -s $CONDA_DIR/bin/activate /usr/local/bin/activate
+    $CONDA_DIR/bin/conda clean --all --yes
 
-# Initialize Conda in bash
-RUN echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    /opt/conda/bin/conda init bash
+# 使用 conda 安装所有 Python 包
+RUN conda install -y -c conda-forge \
+    fastapi \
+    uvicorn \
+    python-multipart \
+    cudnn \
+    && conda clean --all -y
 
-RUN /usr/local/bin/pip install faster-whisper fastapi uvicorn python-multipart
-RUN /usr/local/bin/conda install cudnn -y
+# 使用 pip 安装不在 conda 中的包
+RUN pip install faster-whisper modelscope
 
 WORKDIR /opt/whisper
 
-#download model
-RUN pip install modelscope && \
-    modelscope download Systran/faster-whisper-tiny --local_dir /opt/whisper/models/Systran-faster-whisper-tiny && \
+# download model
+RUN modelscope download Systran/faster-whisper-tiny --local_dir /opt/whisper/models/Systran-faster-whisper-tiny && \
     modelscope download Systran/faster-whisper-base --local_dir /opt/whisper/models/Systran-faster-whisper-base && \
     modelscope download Systran/faster-whisper-small --local_dir /opt/whisper/models/Systran-faster-whisper-small && \
     modelscope download Systran/faster-whisper-medium --local_dir /opt/whisper/models/Systran-faster-whisper-medium && \
     modelscope download Systran/faster-whisper-large-v3 --local_dir /opt/whisper/models/Systran-faster-whisper-large-v3
 
-COPY ../src/*.py ./
+COPY ../src/server.py /opt/whisper
 
 ENV PORT=8000
 EXPOSE 8000
